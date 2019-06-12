@@ -1,0 +1,112 @@
+import io
+import os
+import docx
+from gtts import gTTS
+from pdfminer.converter import TextConverter
+from pdfminer.pdfinterp import PDFPageInterpreter
+from pdfminer.pdfinterp import PDFResourceManager
+from pdfminer.pdfpage import PDFPage
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+import pyttsx3
+import speech_recognition as sr
+
+
+def task():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Говорите")
+        r.pause_threshold = 1
+        r.adjust_for_ambient_noise(source, duration=1)
+        audio = r.listen(source)
+    try:
+        zadanie = r.recognize_google(audio, language="uk-UK").lower()
+        print("Вы сказали: " + zadanie)
+    except sr.UnknownValueError:
+        voice("Я вас не розумію")
+        zadanie = task()
+        return zadanie
+
+
+def todo(zadanie, iter):
+    if zadanie == 'наступний':
+        return iter + 1
+    elif zadanie == "відкрити":
+        OpenFile()
+
+
+def pdf(PATH):
+    resource_manager = PDFResourceManager()
+    fake_file_handle = io.StringIO()
+    converter = TextConverter(resource_manager, fake_file_handle)
+    page_interpreter = PDFPageInterpreter(resource_manager, converter)
+
+    with open(PATH, 'rb') as fh:
+        for page in PDFPage.get_pages(fh, caching=True, check_extractable=True):
+            page_interpreter.process_page(page)
+        text = fake_file_handle.getvalue()
+    converter.close()
+    fake_file_handle.close()
+
+    if text:
+        return text
+
+
+def openfile(path):
+    print(path)
+    if path.endswith('pdf'):
+        voice(pdf(path))
+    elif path.endswith('txt'):
+        voice(txt(path))
+    elif path.endswith('docx'):
+        voice(docxfile(path))
+
+
+def txt(PATH):
+    with open(PATH, 'r') as file:
+        data = file.read().replace('\n', '')
+    return data
+
+
+def docxfile(PATH):
+    doc = docx.Document(PATH)
+    text = ''
+    for paragraph in range (0, len(doc.paragraphs)):
+        text += doc.paragraphs[paragraph].text
+    return text
+
+
+def voice(TEXT):
+    tts = gTTS(text=TEXT, lang='uk')
+    tts.save("good.mp3")
+    os.system("mpg321 good.mp3")
+
+
+allfiles = os.listdir('/media/andriy/USB')
+listforuser = []
+listofdocs = []
+for item in allfiles:
+    file = str(item)
+    if file.endswith('.txt') or file.endswith('.docx') or file.endswith('.pdf'):
+        listofdocs.append(str(item))
+        filename = file.split('.')
+        listforuser.append(filename[0])
+
+for item in listforuser:
+    voice(item)
+
+print(listofdocs)
+print(listforuser)
+
+for i in range(0, len(listofdocs)):
+    voice(listforuser[i])
+    Task1 = task()
+    if Task1 == 'відкрити':
+        openfile('/media/andriy/USB/' + listofdocs[i])
+        break
+    elif Task1 == 'наступний':
+        i += 1
+
+
+
+
